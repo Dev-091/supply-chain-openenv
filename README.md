@@ -77,7 +77,7 @@ The environment comes with three standardized tasks, graded from 0.0 to 1.0.
 
 ## 📈 Baseline Scores
 
-The default baseline agent (`baseline/inference.py`) evaluates zero-shot performance using the local `qwen2.5:14b-instruct-q4_K_M` model (Seed: 42).
+The default baseline agent (`inference.py`) evaluates zero-shot performance using the local `qwen2.5:14b-instruct-q4_K_M` model (Seed: 42).
 
 | Task | Final Score (Average) |
 | :--- | :--- |
@@ -92,48 +92,47 @@ The default baseline agent (`baseline/inference.py`) evaluates zero-shot perform
 
 ## 🛠️ Setup Instructions
 
+This project strictly follows the **OpenEnv multi-mode deployment** specification, utilizing `uv` for modern dependency locking and deployment standardization.
+
 ### 1. Requirements
-Ensure you have **Python 3.11+** installed (the project is highly compatible with Python 3.14).
+Ensure you have **Python 3.11+** installed and the `uv` package manager available.
 
 ### 2. Local Installation
-Clone the repository and set up a virtual environment:
+Clone the repository and sync the dependencies locally:
 
 ```bash
-# Set up virtual environment
-python -m venv venv
+# Install uv globally if you don't have it
+pip install uv
 
-# Activate venv (Windows)
-.\venv\Scripts\activate
+# Generate the uv.lock file
+uv lock
 
-# Activate venv (Linux/Mac)
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
+# Sync the environment
+uv sync
 ```
 
 ### 3. Running the API Server
-The environment is exposed as an HTTP REST API using FastAPI. Start the server on port 7860:
+The environment is exposed as an HTTP REST API. Start the server on port 7860:
 
 ```bash
-python -m uvicorn api.server:app --host 0.0.0.0 --port 7860 --reload
+uvicorn server.app:app --host 0.0.0.0 --port 7860 --reload
 ```
 
 Once running, you can explore the interactive API Documentation by navigating to:  
 👉 `http://localhost:7860/docs`
 
 ### 4. Running the Baseline Agent
-If you want to see an LLM autonomously play the environment:
-1. Ensure your API server is running in a background terminal.
-2. Ensure you have [Ollama](https://ollama.com/) running locally with the `qwen2.5:14b-instruct-q4_K_M` model pulled.
-3. In a new terminal, run:
+To execute the automated evaluation with the robotic `[START]` and `[STEP]` logging structures:
+
+1. Ensure your chosen AI endpoint is running (or set `HF_TOKEN` / `API_BASE_URL` in your `.env`).
+2. Run the inference script:
 
 ```bash
-python baseline/inference.py
+python inference.py
 ```
 
 ### 5. Docker Deployment (Optional)
-To containerize the API server:
+To containerize the OpenEnv application for Hugging Face Spaces natively:
 
 ```bash
 # Build the image
