@@ -1,0 +1,21 @@
+{
+    "task_id": "task_easy",
+    "max_steps": 30,
+    "initial_stock": 100,
+    "base_demand": 20,
+    "seasonality": false,
+    "holding_cost_rate": 0.05,
+    "stockout_cost_per_unit": 2.0,
+    "suppliers": [
+        {
+            "id": "A",
+            "name": "Supplier Alpha",
+            "unit_cost": 10.0,
+            "lead_time_days": 3,
+            "reliability": 0.99,
+            "min_order_qty": 10,
+            "max_order_qty": 500
+        }
+    ],
+    "disruptions": []
+}
