@@ -5,9 +5,9 @@ from typing import List, Optional
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from env.environment import SupplyChainEnv
-from env.models import Action
-from graders.composite_grader import grade
+from server.environment import SupplyChainEnv
+from models import Action
+from server.graders.composite_grader import grade
 
 load_dotenv()
 

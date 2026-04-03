@@ -2,9 +2,9 @@ from fastapi import FastAPI, HTTPException, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from env.environment import SupplyChainEnv
-from env.models import Action
-from graders.composite_grader import grade
+from server.environment import SupplyChainEnv
+from models import Action
+from server.graders.composite_grader import grade
 
 env = SupplyChainEnv()
 

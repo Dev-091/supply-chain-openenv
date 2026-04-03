@@ -6,12 +6,12 @@ from copy import deepcopy
 
 import numpy as np
 
-from env.models import (
+from models import (
     Action, Observation, PendingOrder,
     Reward, RewardBreakdown, SupplierInfo, EpisodeResult
 )
-from env.demand_generator import DemandGenerator
-from env.disruption import DisruptionSchedule
+from server.demand_generator import DemandGenerator
+from server.disruption import DisruptionSchedule
 
 TASKS_DIR = Path(__file__).parent / "tasks"
 

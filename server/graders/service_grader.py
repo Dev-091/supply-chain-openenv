@@ -1,4 +1,4 @@
-from env.models import EpisodeResult
+from models import EpisodeResult
 
 
 def grade_service(result: EpisodeResult) -> float:

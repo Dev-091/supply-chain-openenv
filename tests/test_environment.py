@@ -1,6 +1,6 @@
 import pytest
-from env.environment import SupplyChainEnv
-from env.models import Action
+from server.environment import SupplyChainEnv
+from models import Action
 
 
 def test_reset_returns_observation():

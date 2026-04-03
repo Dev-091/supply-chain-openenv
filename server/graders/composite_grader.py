@@ -1,6 +1,6 @@
-from env.models import EpisodeResult
-from graders.cost_grader import grade_cost
-from graders.service_grader import grade_service
+from models import EpisodeResult
+from server.graders.cost_grader import grade_cost
+from server.graders.service_grader import grade_service
 
 TASK_WEIGHTS = {
     "task_easy": {

@@ -1,8 +1,9 @@
+
 ---
 title: Supply Chain OpenEnv
 emoji: 🚛
 colorFrom: blue
-colorTo: indigo
+colorTo: purple
 sdk: docker
 app_port: 7860
 pinned: false

@@ -1,7 +1,7 @@
-from env.models import EpisodeResult
-from graders.composite_grader import grade
-from graders.service_grader import grade_service
-from graders.cost_grader import grade_cost
+from models import EpisodeResult
+from server.graders.composite_grader import grade
+from server.graders.service_grader import grade_service
+from server.graders.cost_grader import grade_cost
 
 
 def _make_result(task_id, fulfilled, demanded, cost, stockouts=0):
