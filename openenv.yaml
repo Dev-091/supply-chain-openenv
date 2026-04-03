@@ -4,7 +4,7 @@ description: >
   A supply chain management environment where an AI agent manages
   inventory, selects suppliers, places reorders, and handles
   disruptions across simulated time steps.
-author: your-username
+author: DevSharma091
 license: MIT
 tasks:
   - id: task_easy

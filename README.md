@@ -11,7 +11,7 @@ pinned: false
 
 # Supply Chain OpenEnv
 
-**Supply Chain OpenEnv** is a Reinforcement Learning (RL) simulation environment tailored for advanced supply chain and inventory decision-making tasks. 
+**Supply Chain OpenEnv** (by @DevSharma091) is a Reinforcement Learning (RL) simulation environment tailored for advanced supply chain and inventory decision-making tasks. 
 
 It is designed to evaluate both traditional Reinforcement Learning algorithms and modern Large Language Model (LLM) agents. The agent acts as an inventory manager and must balance conflicting objectives: minimizing holding costs, preventing costly stockouts, and dynamically navigating supply chain disruptions (like sudden demand spikes or supplier factory shutdowns).
 
