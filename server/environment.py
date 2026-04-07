@@ -172,9 +172,10 @@ class SupplyChainEnv:
             self._total_fulfilled / self._total_demanded
             if self._total_demanded > 0 else 0.0
         )
-        # normalize cumulative reward to 0-1
+        # normalize cumulative reward to 0-1, strictly bounded between (0, 1)
         max_possible = self._total_demanded * FULFILLMENT_REWARD
-        final_score = max(0.0, min(1.0, self._cumulative_reward / max(1, max_possible)))
+        raw_score = self._cumulative_reward / max(1, max_possible)
+        final_score = max(0.001, min(0.999, raw_score))
 
         return EpisodeResult(
             task_id=self._task_id,

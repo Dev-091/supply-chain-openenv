@@ -1,5 +1,7 @@
 from models import EpisodeResult
 
+EPSILON = 0.001
+
 
 def grade_service(result: EpisodeResult) -> float:
     """
@@ -7,4 +9,5 @@ def grade_service(result: EpisodeResult) -> float:
     0.0 = never fulfilled anything
     1.0 = fulfilled every unit of demand
     """
-    return round(max(0.0, min(1.0, result.service_level)), 4)
+    bounded = max(EPSILON, min(1.0 - EPSILON, result.service_level))
+    return round(bounded, 6)

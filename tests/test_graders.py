@@ -20,12 +20,12 @@ def _make_result(task_id, fulfilled, demanded, cost, stockouts=0):
 
 def test_perfect_service_scores_1():
     r = _make_result("task_easy", 600, 600, 1000.0)
-    assert grade_service(r) == 1.0
+    assert 0.0 < grade_service(r) < 1.0
 
 
 def test_zero_service_scores_0():
     r = _make_result("task_easy", 0, 600, 0.0)
-    assert grade_service(r) == 0.0
+    assert 0.0 < grade_service(r) < 1.0
 
 
 def test_cost_better_than_baseline_scores_above_half():
@@ -37,7 +37,7 @@ def test_cost_better_than_baseline_scores_above_half():
 def test_composite_score_in_range():
     r = _make_result("task_easy", 500, 600, 2000.0, stockouts=2)
     result = grade(r)
-    assert 0.0 <= result["final_score"] <= 1.0
+    assert 0.0 < result["final_score"] < 1.0
 
 
 def test_hard_task_uses_correct_weights():

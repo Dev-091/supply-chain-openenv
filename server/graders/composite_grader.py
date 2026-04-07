@@ -2,6 +2,8 @@ from models import EpisodeResult
 from server.graders.cost_grader import grade_cost
 from server.graders.service_grader import grade_service
 
+EPSILON = 0.001
+
 TASK_WEIGHTS = {
     "task_easy": {
         "service": 0.7,
@@ -35,10 +37,11 @@ def grade(result: EpisodeResult) -> dict:
         weights["service"] * service_score +
         weights["cost"] * cost_score
     )
+    final = max(EPSILON, min(1.0 - EPSILON, final))
 
     return {
         "task_id": result.task_id,
-        "final_score": round(final, 4),
+        "final_score": round(final, 6),
         "service_score": service_score,
         "cost_score": cost_score,
         "service_level": result.service_level,
