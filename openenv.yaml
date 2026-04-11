@@ -11,14 +11,20 @@ tasks:
     name: Basic Reorder Policy
     difficulty: easy
     max_steps: 30
+    pass_threshold: 0.70
+    excellent_threshold: 0.90
   - id: task_medium
     name: Supplier Selection
     difficulty: medium
     max_steps: 60
+    pass_threshold: 0.55
+    excellent_threshold: 0.75
   - id: task_hard
     name: Disruption Mitigation
     difficulty: hard
     max_steps: 90
+    pass_threshold: 0.40
+    excellent_threshold: 0.60
 action_space:
   type: structured
   schema: Action
@@ -26,3 +32,10 @@ observation_space:
   type: structured
   schema: Observation
 reward_range: [0.0, 1.0]
+
+extra_endpoints:
+  health: /health
+  reset: /reset
+  step: /step
+  score: /score
+  baseline: /baseline

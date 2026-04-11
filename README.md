@@ -9,143 +9,113 @@ app_port: 7860
 pinned: false
 ---
 
-# Supply Chain OpenEnv
+# Supply Chain OpenEnv (Winning Edition) 🚛
 
-**Supply Chain OpenEnv** (by @DevSharma091) is a Reinforcement Learning (RL) simulation environment tailored for advanced supply chain and inventory decision-making tasks. 
+**Supply Chain OpenEnv** is a high-fidelity Reinforcement Learning (RL) simulation environment designed for evaluating complex supply chain and inventory management strategies.
 
-It is designed to evaluate both traditional Reinforcement Learning algorithms and modern Large Language Model (LLM) agents. The agent acts as an inventory manager and must balance conflicting objectives: minimizing holding costs, preventing costly stockouts, and dynamically navigating supply chain disruptions (like sudden demand spikes or supplier factory shutdowns).
+> [!NOTE]
+> This environment is built to be strictly compliant with the **Meta PyTorch OpenEnv** specification, supporting concurrent evaluation sessions and structured robotic logging.
 
 ---
 
-## 🌍 Environment Description
+## 🌍 Environment Context
 
-The environment operates on a discrete daily step sequence. Each "day," the agent receives an observation detailing the current state of the warehouse. The episode runs for a fixed number of days (e.g., 30 days) defined by the task difficulty (`task_easy`, `task_medium`, `task_hard`).
+The agent manages a regional distribution center. Its goal is to fulfill stochastic customer demand while minimizing operating costs (holding fees, expedited shipping premiums, and stockout penalties).
 
-The agent's primary goals are:
-1. **Prevent Stockouts:** Ensure there is always enough inventory to fulfill the stochastic daily customer demand. Stockouts incur harsh penalty costs.
-2. **Minimize Holding Costs:** Keeping too much inventory incurs a daily holding fee.
-3. **Navigate Disruptions:** React to early warnings provided by the `DisruptionSchedule` and pivot to secondary suppliers if primary suppliers go offline or experience shipping delays.
-
-At the end of an episode, the agent receives a composite score (0.0 to 1.0) mathematically grading its service level against its total operating costs.
+### Key Management Challenges:
+1. **Demand Stochasticity**: Forecasts are noisy; true demand is hidden.
+2. **Supplier Reliability**: Suppliers have varying lead times and reliability scores (orders can occasionally be lost in transit).
+3. **Disruption Events**: Dock strikes, demand spikes, and factory shutdowns appear as textual warnings in the observation stream.
 
 ---
 
 ## 🔭 Observation Space
 
-At each step, the environment returns a comprehensive JSON observation object describing the current state.
+At each step, the agent receives a state JSON. All fields are designed for easy ingestion by LLM-based agents.
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `day` | `int` | The current simulated day (e.g., 0 to 30). |
-| `stock_level` | `int` | Current physical inventory available in the warehouse. |
-| `pending_orders` | `List[PendingOrder]`| Array of incoming shipments, including quantities and expected arrival days. |
-| `daily_demand_forecast`| `float` | A noisy estimate of tomorrow's demand. (True demand remains hidden). |
-| `suppliers` | `List[SupplierInfo]`| Details on available suppliers, their unit costs, lead times, and min/max order constraints. |
-| `disruption_warning` | `str` \| `null` | An early warning string if a disruption (e.g., supplier shutdown) is starting within 3 days. |
-| `holding_cost_rate` | `float` | The cost incurred per unit of inventory held per day. |
-| `stockout_cost_per_unit`| `float` | The penalty incurred per unit of unfulfilled customer demand. |
-| `episode_budget_used` | `float` | Total money spent so far on purchasing inventory. |
-| `task_id` | `str` | The active configuration task (e.g., `"task_medium"`). |
-| `done` | `bool` | True if the episode has reached the maximum step limit. |
+| Field | Type | Description | Range / Example |
+| :--- | :--- | :--- | :--- |
+| `day` | `int` | Current episode day | `0 - 90` |
+| `stock_level` | `int` | Physical units in warehouse | `0+` |
+| `pending_orders` | `list` | Incoming shipments queue | `[{"order_id": "...", ...}]` |
+| `daily_demand_forecast` | `float` | Predicted demand for tomorrow | `~10.0 - 150.0` |
+| `suppliers` | `list` | Static supplier performance data | `Lead times, Min/Max qty` |
+| `disruption_warning` | `str?` | Textual warning of incoming events | `"Supplier A offline in 2 days"` |
+| `holding_cost_rate` | `float` | Cost per unit per day | `0.1 - 0.5` |
+| `stockout_cost_per_unit` | `float` | Penalty for unfulfilled demand | `2.0+` |
+| `episode_budget_used` | `float` | Total reorder spend so far | `0.0+` |
+| `task_id` | `str` | Active task identifier | `"task_easy"` |
+| `done` | `bool` | Episode completion flag | `true / false` |
 
 ---
 
 ## 🕹️ Action Space
 
-At each step, the agent must submit a JSON action object.
+The agent must submit a structured JSON action. Validating against the supplier's constraints is mandatory.
 
-*Note: If the agent decides to buy inventory, the `quantity` must fall between the chosen supplier's `min_order_qty` and `max_order_qty`.*
+| Field | Type | Required For | Description |
+| :--- | :--- | :--- | :--- |
+| `type` | `str` | All | `wait`, `reorder`, `expedite`, `cancel_order` |
+| `supplier_id` | `str` | `reorder`, `expedite` | Target supplier ID (e.g., `"S1"`) |
+| `quantity` | `int` | `reorder`, `expedite` | Units to purchase |
+| `order_id` | `str` | `cancel_order` | The specific ID to remove from queue |
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `type` | `str` | The literal action. Must be `"reorder"`, `"wait"`, `"expedite"`, or `"cancel_order"`. |
-| `supplier_id` | `str` \| `null` | Target supplier ID (e.g., `"A"`, `"B"`, `"C"`). Required for `reorder` and `expedite`. |
-| `quantity` | `int` \| `null` | Units to purchase. Required for `reorder` and `expedite`. |
-| `order_id` | `str` \| `null` | The specific order ID string to cancel. Required only for `cancel_order`. |
-
-### Action Types Breakdown:
-- **`wait`**: Do nothing today. Saves budget.
-- **`reorder`**: Place a standard order. It will arrive after the supplier's specific `lead_time_days` plus any active disruption delays.
-- **`expedite`**: Place an emergency order. Arrives the **next day** but costs 2x the standard unit price.
-- **`cancel_order`**: Removes a pending shipment from the queue (simulating stopping a truck mid-transit).
+**Action Dynamics:**
+- **Wait**: Cost-free pass of time.
+- **Reorder**: Standard lead-time and standard unit cost.
+- **Expedite**: Next-day arrival at **2x unit cost**.
+- **Cancel**: Useful for mitigating overstock when demand unexpectedly drops.
 
 ---
 
-## 📋 Task Descriptions
+## 📋 Task Specification & Thresholds
 
-The environment comes with three standardized tasks, graded from 0.0 to 1.0.
+We provide three standardized benchmarks. Each is graded from `0.0` to `1.0`.
 
-| Task ID | Description | Expected Difficulty |
-| :--- | :--- | :--- |
-| **`task_easy`** | **Basic Reorder Policy** (30 steps). Single reliable supplier. Tests if the agent can maintain a basic 1-to-1 reorder cycle without overstocking. | Easy |
-| **`task_medium`** | **Supplier Selection** (60 steps). Multiple suppliers with varying lead times and costs. Tests if the agent optimizes budget by using the slow/cheap supplier normally, but the fast/expensive supplier in emergencies. | Medium |
-| **`task_hard`** | **Disruption Mitigation** (90 steps). Introduces chaotic events (dock strikes delaying shipments, sudden viral demand spikes). Tests the agent's ability to pivot rapidly and read text warnings. | Hard |
-
----
-
-## 📈 Baseline Scores
-
-The default baseline agent (`inference.py`) evaluates zero-shot performance using the local `qwen2.5:14b-instruct-q4_K_M` model (Seed: 42).
-
-| Task | Final Score (Average) |
-| :--- | :--- |
-| `task_easy` | 0.8120 |
-| `task_medium` | 0.6550 |
-| `task_hard` | 0.4200 |
-| **Average** | **0.6290** |
-
-*Note: Baseline scores demonstrate that the environment differentiates difficulty well. Hard tasks pose significant challenges to current LLMs.*
+| Task ID | Focus | Steps | Pass | Excellent |
+| :--- | :--- | :--- | :--- | :--- |
+| **`task_easy`** | Inventory Balancing | 30 | `> 0.70` | `> 0.90` |
+| **`task_medium`** | Supplier Optimization | 60 | `> 0.55` | `> 0.75` |
+| **`task_hard`** | Crisis Management | 90 | `> 0.40` | `> 0.60` |
 
 ---
 
-## 🛠️ Setup Instructions
+## 🏗️ Technical Architecture
 
-This project strictly follows the **OpenEnv multi-mode deployment** specification, utilizing `uv` for modern dependency locking and deployment standardization.
+This environment is engineered for robustness:
+- **Session Isolation**: Supports `session_id` to allow multiple concurrent evaluators.
+- **Grader Logic**: Uses `EpisodeResult` models to produce a composite score based on Profitability (40%) and Service Level (60%).
+- **Robotic Logging**: Implements the `[START]`, `[STEP]`, `[END]` protocol for automated parsers.
+
+---
+
+## 🛠️ Setup & Deployment
 
 ### 1. Requirements
-Ensure you have **Python 3.11+** installed and the `uv` package manager available.
+Ensure you have **Python 3.11+** and the `uv` manager.
 
-### 2. Local Installation
-Clone the repository and sync the dependencies locally:
-
+### 2. Standard Installation
 ```bash
-# Install uv globally if you don't have it
-pip install uv
-
-# Generate the uv.lock file
-uv lock
-
-# Sync the environment
 uv sync
 ```
 
-### 3. Running the API Server
-The environment is exposed as an HTTP REST API. Start the server on port 7860:
-
+### 3. API Serving (Port 7860)
 ```bash
-uvicorn server.app:app --host 0.0.0.0 --port 7860 --reload
+uvicorn server.app:app --host 0.0.0.0 --port 7860
 ```
 
-Once running, you can explore the interactive API Documentation by navigating to:  
-👉 `http://localhost:7860/docs`
-
-### 4. Running the Baseline Agent
-To execute the automated evaluation with the robotic `[START]` and `[STEP]` logging structures:
-
-1. Ensure your chosen AI endpoint is running (or set `HF_TOKEN` / `API_BASE_URL` in your `.env`).
-2. Run the inference script:
-
+### 4. Running Benchmarks
 ```bash
+# Set HF_TOKEN in your environment first
 python inference.py
 ```
 
-### 5. Docker Deployment (Optional)
-To containerize the OpenEnv application for Hugging Face Spaces natively:
+---
+
+## 🐋 Docker Hub / HF Spaces
+This repo is ready for native Hugging Face Spaces deployment using the provided `Dockerfile`.
 
 ```bash
-# Build the image
 docker build -t supply-chain-openenv .
-
-# Run the container exposing port 7860
 docker run -p 7860:7860 supply-chain-openenv
 ```

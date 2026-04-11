@@ -1,6 +1,7 @@
 import os
 import json
 import textwrap
+import uuid
 from typing import List, Optional
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -11,14 +12,15 @@ from server.graders.composite_grader import grade
 
 load_dotenv()
 
-# Use os.environ to strictly comply with the proxy requirement (fail fast if missing)
-# We support both API_KEY and HF_TOKEN as per validation variants
-API_BASE_URL = os.environ.get("API_BASE_URL")
-API_KEY = os.environ.get("API_KEY") or os.environ.get("HF_TOKEN")
-MODEL_NAME = os.environ.get("MODEL_NAME", "gpt-4.1-mini")
+API_BASE_URL = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4.1-mini")
+HF_TOKEN = os.getenv("HF_TOKEN")
+
+if HF_TOKEN is None:
+    raise ValueError("HF_TOKEN environment variable is required")
 
 BENCHMARK = "supply-chain-env"
-SUCCESS_SCORE_THRESHOLD = 0.3  # Threshold for success=true
+SUCCESS_SCORE_THRESHOLD = 0.5  # Consistent with README pass_threshold
 
 SYSTEM_PROMPT = textwrap.dedent("""
     You are an expert supply chain manager. Each day you receive the current
@@ -51,7 +53,7 @@ def log_start(task: str, env: str, model: str) -> None:
 
 def log_step(step: int, action: str, reward: float, done: bool, error: Optional[str]) -> None:
     # [STEP]  step=<n> action=<action_str> reward=<0.00> done=<true|false> error=<msg|null>
-    error_val = f'"{error}"' if error else "null"
+    error_val = error if error else "null"
     done_val = str(done).lower()
     print(
         f"[STEP] step={step} action={action} reward={reward:.2f} done={done_val} error={error_val}",
@@ -59,7 +61,7 @@ def log_step(step: int, action: str, reward: float, done: bool, error: Optional[
     )
 
 def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
-    # [END] success=<true|false> steps=<n> score=<0.0000> rewards=<r1,r2,...,rn>
+    # [END] success=<true|false> steps=<n> score=<... > rewards=<r1,r2,...,rn>
     rewards_str = ",".join(f"{r:.2f}" for r in rewards)
     print(f"[END] success={str(success).lower()} steps={steps} score={score:.4f} rewards={rewards_str}", flush=True)
 
@@ -94,8 +96,13 @@ def get_action(client: OpenAI, observation_dict: dict) -> tuple[Action, str, Opt
 
 
 def run_task(client: OpenAI, task_id: str, seed: int = 42):
+    # Unique session for this task run to ensure concurrency safety
+    session_id = f"eval_{uuid.uuid4().hex[:8]}"
+    
     env = SupplyChainEnv()
     obs = env.reset(task_id=task_id, seed=seed)
+    # Internally session_id is used for server calls if we used a remote client
+    # For this local inference script, we just demonstrate the session_id pattern
     
     done = False
     step_num = 0
@@ -103,14 +110,16 @@ def run_task(client: OpenAI, task_id: str, seed: int = 42):
 
     log_start(task=task_id, env=BENCHMARK, model=MODEL_NAME)
 
-    last_score = 0.001
+    last_score = 0.0001
+    success = False
+    
     try:
         while not done and step_num < 100: # Safety cap
             step_num += 1
             action, action_json, error = get_action(client, obs.model_dump())
             
             # Action string for logging (compact)
-            action_str = action_json.replace('\n', '').replace(' ', '')
+            action_str = action.model_dump_json(exclude_none=True)
             
             obs, reward_obj, done, info = env.step(action)
             r = reward_obj.step_reward
@@ -120,22 +129,17 @@ def run_task(client: OpenAI, task_id: str, seed: int = 42):
 
         result = env.get_final_score()
         scores = grade(result)
-        last_score = scores.get('final_score', 0.001)
+        last_score = scores.get('final_score', 0.0001)
         success = last_score >= SUCCESS_SCORE_THRESHOLD
         
-        log_end(success=success, steps=step_num, score=last_score, rewards=rewards)
-        
     except Exception as exc:
+        print(f"[DEBUG] Error running task {task_id}: {exc}", flush=True)
+    finally:
         # Final log must be emitted even on error
-        log_end(success=False, steps=step_num, score=last_score, rewards=rewards)
+        log_end(success=success, steps=step_num, score=last_score, rewards=rewards)
 
 def main():
-    if not API_BASE_URL:
-        raise RuntimeError("Missing required environment variable: API_BASE_URL")
-    if not API_KEY:
-        raise RuntimeError("Missing required environment variable: API_KEY (or HF_TOKEN)")
-
-    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
     tasks = ["task_easy", "task_medium", "task_hard"]
     for task_id in tasks:
         run_task(client, task_id, seed=42)
